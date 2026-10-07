@@ -75,14 +75,22 @@ $Global:LPFC_SshPort    = 22
 [ip]      via proxy: 1.2.3.4
 ```
 
-### Шаг 6. Включить автозагрузку + PAC
+### Шаг 6. Включить PAC + автозагрузку
 
 ```powershell
 .\enable-system-pac.ps1       # PAC для Claude Desktop (Store-приложение)
 .\install-autostart.ps1       # автозапуск туннеля и PAC при логоне Windows
 ```
 
-После этого туннель и PAC поднимаются автоматически при каждом включении ПК.
+> ⚠️ **Автозагрузка через Windows Scheduled Tasks работает не у всех.**
+> Используется `wscript.exe` + VBS-обёртка для скрытого запуска PowerShell
+> (обычный `-WindowStyle Hidden` в Task Scheduler ненадёжен). Если после
+> ребута туннель не поднялся — запусти вручную:
+> ```powershell
+> .\restart-proxy.ps1
+> ```
+> Или создай ярлык на `restart-proxy.ps1` в папке автозагрузки Windows:
+> `Win+R` → `shell:startup` → положить туда ярлык.
 
 ### Шаг 7. Настроить Chrome (опционально)
 
@@ -166,13 +174,22 @@ Chrome         ──► расширение SwitchyOmega ───────
 | `pac-server.ps1` | HTTP-сервер, раздающий `claude-proxy.pac`. Работает в фоне, автозапуск через scheduled task |
 | `claude-proxy.pac` | PAC-файл: `claude.ai` и `anthropic.com` → через прокси, всё остальное → напрямую |
 
-### Автозапуск
+### Автозапуск (⚠️ может не работать)
+
+> **Известная проблема:** Windows Scheduled Tasks + PowerShell ненадёжно
+> работают в скрытом режиме. Процессы могут получать `CTRL+C` при закрытии
+> консольного окна (`0xC000013A`). Используется VBS-обёртка (`run-hidden.vbs`)
+> как workaround, но это не гарантирует работу на всех системах.
+>
+> **Надёжная альтернатива:** создать ярлык на `restart-proxy.ps1` в папке
+> автозагрузки (`Win+R` → `shell:startup`).
 
 | Скрипт | Когда использовать |
 |---|---|
-| `install-autostart.ps1` | Регистрирует 2 scheduled tasks: `LocalProxyForClaude-Tunnel` (SSH-демон) и `LocalProxyForClaude-PAC` (PAC-сервер). Оба стартуют при логоне, перезапускаются при сбое |
+| `install-autostart.ps1` | Регистрирует 2 scheduled tasks: `LocalProxyForClaude-Tunnel` (SSH-демон) и `LocalProxyForClaude-PAC` (PAC-сервер). Стартуют при логоне, перезапускаются при сбое. **Может не работать — см. выше** |
 | `uninstall-autostart.ps1` | Убирает оба task-а, убивает туннель и PAC-сервер |
 | `tunnel-daemon.ps1` | Бесконечный цикл: держит SSH-туннель, реконнект при обрыве. Запускается scheduled task-ом, не вручную |
+| `restart-proxy.ps1` | Перезапуск туннеля + PAC. Использовать после ребута если автозапуск не сработал |
 
 ### Полный откат
 
