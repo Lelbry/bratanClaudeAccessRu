@@ -4,7 +4,109 @@
 Работает **только для нужных приложений** — остальной интернет идёт напрямую,
 никаких TUN-адаптеров, WFP-хуков и конфликтов с loopback.
 
-> **Настройка сервера с нуля** (tinyproxy + XRay/VLESS): [`VPS-SERVER-FULL-SETUP.md`](./VPS-SERVER-FULL-SETUP.md)
+---
+
+## Установка с нуля (для нового пользователя)
+
+### Что понадобится
+
+- **Windows 10/11** с PowerShell
+- **VPS-сервер** (Ubuntu) с установленным tinyproxy — [инструкция по настройке сервера](./VPS-SERVER-FULL-SETUP.md)
+- **SSH-ключ** для подключения к серверу
+- **Google Chrome** (опционально, для браузерного доступа к AI-сервисам)
+
+### Шаг 1. Скачать проект
+
+```powershell
+git clone https://github.com/Lelbry/bratanClaudeAccessRu.git
+cd bratanClaudeAccessRu
+```
+
+### Шаг 2. Настроить сервер (если ещё не настроен)
+
+Если у тебя уже есть VPS с tinyproxy — пропусти этот шаг.
+
+Если нет — купи VPS (Ubuntu 22.04) и настрой по инструкции:
+[`VPS-SERVER-FULL-SETUP.md`](./VPS-SERVER-FULL-SETUP.md) — там всё по шагам, копипастой.
+
+### Шаг 3. SSH-ключ
+
+Создай папку `keys/` и сгенерируй ключ:
+
+```powershell
+mkdir keys
+ssh-keygen -t ed25519 -f keys\id_ed25519_claude -N "" -C "claude-tunnel"
+```
+
+Добавь публичный ключ на сервер:
+
+```powershell
+type keys\id_ed25519_claude.pub | ssh root@ТВОЙ_IP_СЕРВЕРА "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
+```
+
+Проверь что работает:
+```powershell
+ssh -i keys\id_ed25519_claude root@ТВОЙ_IP_СЕРВЕРА "echo OK"
+```
+
+### Шаг 4. Вписать данные сервера
+
+Открой `config.ps1` и замени `YOUR_SERVER_IP` на IP своего сервера:
+
+```powershell
+$Global:LPFC_SshHost    = "1.2.3.4"     # <-- твой IP
+$Global:LPFC_SshUser    = "root"
+$Global:LPFC_SshPort    = 22
+```
+
+Остальные настройки (порты 8888, 8899) менять не нужно — они стандартные.
+
+### Шаг 5. Проверить что туннель работает
+
+```powershell
+.\start-tunnel.ps1
+.\status.ps1
+```
+
+Ожидаемый вывод:
+```
+[tunnel]  UP    port 127.0.0.1:8888
+[proxy]   OK    api.anthropic.com отвечает HTTP ...
+[ip]      via proxy: 1.2.3.4
+```
+
+### Шаг 6. Включить автозагрузку + PAC
+
+```powershell
+.\enable-system-pac.ps1       # PAC для Claude Desktop (Store-приложение)
+.\install-autostart.ps1       # автозапуск туннеля и PAC при логоне Windows
+```
+
+После этого туннель и PAC поднимаются автоматически при каждом включении ПК.
+
+### Шаг 7. Настроить Chrome (опционально)
+
+Если хочешь через браузер заходить на claude.ai, chatgpt.com, gemini и другие:
+
+```powershell
+cd "google chrome extention"
+.\install-browser-extension.cmd       # установит SwitchyOmega из Web Store
+.\configure-browser-extension.cmd     # импортирует правила auto switch
+```
+
+В тулбаре Chrome выбрать режим **auto switch** — AI-сайты пойдут через прокси, остальное напрямую.
+
+### Шаг 8. Готово!
+
+Проверь:
+- **Claude Desktop** — должен открыться без «region blocked»
+- **Claude Code** — запускай через `.\claude-vpn.cmd`
+- **Chrome** — claude.ai и chatgpt.com работают в режиме auto switch
+
+Диагностика в любой момент:
+```powershell
+.\status.ps1
+```
 
 ---
 
@@ -145,35 +247,15 @@ Tinyproxy пропускает CONNECT на порты из списка `Connec
 
 ---
 
-## Быстрый старт
+## Повседневное использование
 
-### Claude Code (консоль)
-```
-<ROOT>\claude-vpn.cmd
-```
-
-### Claude Desktop (приложение из Store)
-Один раз:
-```powershell
-cd <ROOT>
-.\enable-system-pac.ps1       # прописать PAC в Windows
-.\install-autostart.ps1       # автозапуск туннеля + PAC-сервера
-```
-После этого Claude Desktop работает автоматически при каждом запуске.
-
-### Chrome (браузер)
-Один раз:
-```powershell
-cd "<ROOT>\google chrome extention"
-.\install-browser-extension.cmd     # откроет Web Store — установи расширение
-.\configure-browser-extension.cmd   # импортируй конфиг
-```
-Держать SwitchyOmega в режиме **auto switch**.
-
-### Диагностика
-```powershell
-.\status.ps1
-```
+| Задача | Команда |
+|---|---|
+| Запустить Claude Code через прокси | `.\claude-vpn.cmd` |
+| Проверить что всё работает | `.\status.ps1` |
+| Перезапустить если сломалось | `.\restart-proxy.ps1` |
+| Поднять туннель вручную | `.\start-tunnel.ps1` |
+| Убить туннель | `.\stop-tunnel.ps1` |
 
 ---
 
@@ -233,6 +315,17 @@ cd "<ROOT>\google chrome extention"
 - **MaxClients:** 200 | **Timeout:** 300 сек
 - Подробнее: [`SERVER-INFO.md`](./SERVER-INFO.md) | Настройка: [`VPS-SERVER-FULL-SETUP.md`](./VPS-SERVER-FULL-SETUP.md)
 
+### Безопасность сервера
+
+| Защита | Что делает |
+|---|---|
+| `PasswordAuthentication no` | Вход по паролю отключён — только SSH-ключ |
+| `PermitRootLogin prohibit-password` | Root по паролю невозможен |
+| `ClientAliveInterval 30` | Сервер убивает зомби-SSH-сессии через 90 сек — решает проблему «порт 8888 занят после обрыва» |
+| `fail2ban` (sshd) | Автобан IP после 5 неудачных попыток на 1 час |
+
+⚠️ **Бэкап SSH-ключа обязателен!** Без ключа из `keys/` на сервер не попасть (только через KVM-консоль провайдера).
+
 ### Ограничения сервера
 
 Сервер слабый — **только для текстовых API и лёгких веб-страниц**. Не пускать через него:
@@ -265,6 +358,12 @@ AI-чаты (Claude, ChatGPT, Gemini) — лёгкие текстовые зап
 9. **Warp / другой VPN можно включать когда нужно.** IP сервера (`YOUR_SERVER_IP`) добавлен в split-tunnel исключения Warp (`warp-cli tunnel ip add YOUR_SERVER_IP`) — SSH-туннель идёт напрямую и не рвётся при вкл/выкл Warp. Если после переключения Warp Claude Desktop всё же завис — значит scheduled tasks (`LocalProxyForClaude-Tunnel` / `-PAC`) были убиты вручную (например, через Task Manager) и не восстановились сами: запусти `.\restart-proxy.ps1`. При смене компьютера/переустановке Warp exclude нужно прописать заново.
 
 10. **nano нет на минимальной Ubuntu.** Для записи файлов на сервере использовать `cat > файл << 'EOF'` вместо `nano`.
+
+11. **Зомби-туннели.** Если ПК уснул или потерял сеть — старая SSH-сессия на сервере может повиснуть и держать порт 8888 занятым. `ClientAliveInterval 30` на сервере убивает такие сессии за 90 сек. На клиенте `ServerAliveInterval=30` делает то же со стороны ПК. Двойная защита.
+
+12. **fail2ban может забанить тебя.** Если 5 раз неудачно подключился — IP забанят на 1 час. Разбанить: через KVM-консоль провайдера → `fail2ban-client set sshd unbanip ТВОЙ_IP`. Или подождать час.
+
+13. **SSH-ключ — единственный способ входа.** Пароли на сервере отключены. Потерял ключ → доступ только через KVM/rescue в панели провайдера. Держи бэкап ключа на флешке.
 
 ---
 
@@ -427,3 +526,4 @@ tinyproxy. Все файлы в <ROOT> —
 - **2026-09-05:** убран YouTube из расширения (грузит сервер), убран Telegram из прокси
 - **2026-09-05:** MaxClients 50→200, Timeout 600→300
 - **2026-09-26:** смена IP на `YOUR_SERVER_IP`, повторная настройка tinyproxy и XRay/VLESS с нуля, настройка SwitchyOmega вручную
+- **2026-10-07:** захардён SSH — отключены пароли (`PasswordAuthentication no`), включён keepalive (`ClientAliveInterval 30`), установлен fail2ban + rsyslog. Опубликован на GitHub

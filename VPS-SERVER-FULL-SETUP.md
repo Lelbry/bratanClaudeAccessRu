@@ -226,6 +226,72 @@ vless://1b2c3d4e-5f6a-7b8c-9d0e-1f2a3b4c5d6e@YOUR_SERVER_IP:8080?encryption=none
 
 ---
 
+## Часть 3.5. Защита SSH (обязательно!)
+
+Без этих настроек боты будут подбирать пароль root (реально ~1500 попыток в день).
+
+### 3.5.1. Отключить вход по паролю
+
+```bash
+sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+sed -i 's/^#*PermitRootLogin.*/PermitRootLogin prohibit-password/' /etc/ssh/sshd_config
+```
+
+### 3.5.2. Включить keepalive (убивает зомби-туннели)
+
+Если ПК потеряет сеть, SSH-сессия на сервере повиснет и заблокирует порт 8888.
+Keepalive пингует клиента каждые 30 сек и убивает мёртвые сессии:
+
+```bash
+sed -i 's/^#*ClientAliveInterval.*/ClientAliveInterval 30/' /etc/ssh/sshd_config
+sed -i 's/^#*ClientAliveCountMax.*/ClientAliveCountMax 3/' /etc/ssh/sshd_config
+```
+
+### 3.5.3. Применить
+
+```bash
+systemctl reload sshd
+```
+
+> Существующие SSH-соединения не оборвутся — reload не трогает активные сессии.
+
+### 3.5.4. Установить fail2ban
+
+```bash
+apt install -y rsyslog fail2ban
+systemctl enable rsyslog fail2ban
+
+printf '[sshd]\nenabled = true\nport = ssh\nfilter = sshd\nbackend = auto\nmaxretry = 5\nfindtime = 300\nbantime = 3600\n' > /etc/fail2ban/jail.local
+
+systemctl start rsyslog
+systemctl start fail2ban
+```
+
+Проверка:
+```bash
+fail2ban-client status sshd
+```
+
+### 3.5.5. Проверить
+
+```bash
+grep -E '^(Password|PermitRoot|ClientAlive)' /etc/ssh/sshd_config
+```
+
+Ожидаемый вывод:
+```
+PermitRootLogin prohibit-password
+PasswordAuthentication no
+ClientAliveInterval 30
+ClientAliveCountMax 3
+```
+
+> ⚠️ **После отключения паролей** единственный способ входа — SSH-ключ.
+> Потерял ключ → доступ только через KVM-консоль провайдера.
+> **Сделай бэкап ключа.**
+
+---
+
 ## Часть 4. Настройка Windows-клиента (LocalProxyForClaude)
 
 Эта часть выполняется на **компьютере пользователя**, а не на сервере.
@@ -397,3 +463,4 @@ systemctl restart xray
 - **2026-09-04:** первоначальная настройка (старый IP YOUR_SERVER_IP) — tinyproxy, SSH-туннель, SwitchyOmega
 - **2026-09-05:** PAC для Claude Desktop, автозапуск, оптимизация MaxClients/Timeout
 - **2026-09-26:** смена IP на YOUR_SERVER_IP, повторная настройка tinyproxy и XRay/VLESS с нуля
+- **2026-10-07:** добавлена Часть 3.5 — защита SSH (отключены пароли, keepalive, fail2ban)
