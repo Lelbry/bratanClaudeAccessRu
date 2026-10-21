@@ -6,7 +6,7 @@
 $pids = LPFC-GetTunnelPids
 if ($pids.Count -eq 0) {
     Write-Host "[tunnel] not running" -ForegroundColor Yellow
-    exit 0
+    LPFC-Exit 0
 }
 
 foreach ($p in $pids) {
@@ -17,6 +17,7 @@ Start-Sleep -Milliseconds 500
 
 if (LPFC-IsTunnelUp) {
     Write-Host "[tunnel] port $LPFC_LocalPort still bound - что-то ещё висит" -ForegroundColor Red
-    exit 1
+    LPFC-Exit 1
 }
 Write-Host "[tunnel] stopped" -ForegroundColor Green
+LPFC-WaitIfLaunched

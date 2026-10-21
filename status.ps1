@@ -13,7 +13,7 @@ if (LPFC-IsTunnelUp) {
 } else {
     Write-Host "[tunnel]  DOWN  port $LPFC_LocalPort не слушается" -ForegroundColor Red
     Write-Host "          Запусти: .\start-tunnel.ps1" -ForegroundColor Yellow
-    exit 1
+    LPFC-Exit 1
 }
 
 # 2. Прокси на сервере через туннель
@@ -22,7 +22,7 @@ if ($code -match "^[234]") {
     Write-Host "[proxy]   OK    api.anthropic.com отвечает HTTP $code" -ForegroundColor Green
 } else {
     Write-Host "[proxy]   FAIL  HTTP $code через прокси" -ForegroundColor Red
-    exit 1
+    LPFC-Exit 1
 }
 
 # 3. Внешний IP из-под прокси vs напрямую
@@ -45,3 +45,5 @@ if ($pacListening) {
     Write-Host "[pac]     DOWN  (ок если не используешь Claude Desktop из Store)" -ForegroundColor DarkGray
     Write-Host "          Включить: .\enable-system-pac.ps1" -ForegroundColor DarkGray
 }
+
+LPFC-WaitIfLaunched

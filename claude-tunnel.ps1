@@ -19,7 +19,7 @@ $code = & curl.exe -s -o NUL -w "%{http_code}" -x "http://127.0.0.1:$LPFC_LocalP
 if ($code -notmatch "^[234]") {
     Write-Host "[proxy] FAIL (HTTP=$code)" -ForegroundColor Red
     Write-Host "        Туннель есть, но tinyproxy не отвечает. Проверь сервер." -ForegroundColor Yellow
-    exit 1
+    LPFC-Exit 1
 }
 Write-Host "[proxy] OK (HTTP $code)" -ForegroundColor Green
 

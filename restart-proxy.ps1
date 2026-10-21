@@ -45,4 +45,5 @@ if (-not $pacListening) {
 
 Start-Sleep -Seconds 1
 
+# status.ps1 сам вызывает LPFC-WaitIfLaunched в конце — отдельная пауза не нужна
 & "$PSScriptRoot\status.ps1"

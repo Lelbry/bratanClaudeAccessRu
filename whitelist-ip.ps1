@@ -22,12 +22,12 @@ param(
 # --- Валидация IPv4 ---
 if ($Ip -notmatch '^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$') {
     Write-Host "[whitelist] не похоже на IPv4: $Ip" -ForegroundColor Red
-    exit 1
+    LPFC-Exit 1
 }
 foreach ($octet in $matches[1..4]) {
     if ([int]$octet -gt 255) {
         Write-Host "[whitelist] октет $octet > 255: $Ip" -ForegroundColor Red
-        exit 1
+        LPFC-Exit 1
     }
 }
 
@@ -87,6 +87,7 @@ $exit = $LASTEXITCODE
 $result | ForEach-Object { Write-Host $_ }
 if ($exit -ne 0) {
     Write-Host "[whitelist] SSH вернул код $exit" -ForegroundColor Red
-    exit $exit
+    LPFC-Exit $exit
 }
 Write-Host "[whitelist] готово" -ForegroundColor Green
+LPFC-WaitIfLaunched

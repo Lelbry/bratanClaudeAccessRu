@@ -11,13 +11,13 @@
 
 if (-not (LPFC-IsTunnelUp)) {
     Write-Host "[tunnel] не поднят - сначала .\start-tunnel.ps1" -ForegroundColor Red
-    exit 1
+    LPFC-Exit 1
 }
 
 $pacPath = Join-Path $PSScriptRoot "claude-proxy.pac"
 if (-not (Test-Path $pacPath)) {
     Write-Host "[pac] файл не найден: $pacPath" -ForegroundColor Red
-    exit 1
+    LPFC-Exit 1
 }
 
 # ВАЖНО: обязательно http://, не file:// - Chromium (Claude Desktop и
@@ -57,3 +57,5 @@ Write-Host "      claude.ai / anthropic.com теперь идут через 127
 Write-Host "      (включая десктоп-версию Claude из Microsoft Store)" -ForegroundColor Green
 Write-Host ""
 Write-Host "Перезапусти Claude Desktop, чтобы изменения подхватились." -ForegroundColor Yellow
+
+LPFC-WaitIfLaunched

@@ -6,7 +6,7 @@
 
 if (LPFC-IsTunnelUp) {
     Write-Host "[tunnel] already up on 127.0.0.1:$LPFC_LocalPort" -ForegroundColor Green
-    exit 0
+    LPFC-Exit 0
 }
 
 Write-Host "[tunnel] starting: 127.0.0.1:${LPFC_LocalPort} -> ${LPFC_SshHost}:${LPFC_RemotePort}" -ForegroundColor Cyan
@@ -36,12 +36,12 @@ for ($i = 0; $i -lt 20; $i++) {
 
 if (LPFC-IsTunnelUp) {
     Write-Host "[tunnel] UP" -ForegroundColor Green
-    exit 0
+    LPFC-Exit 0
 } else {
     Write-Host "[tunnel] FAILED to open port $LPFC_LocalPort" -ForegroundColor Red
     Write-Host "  Возможные причины:" -ForegroundColor Yellow
     Write-Host "  - сервер $LPFC_SshHost недоступен (проверь ping)"
     Write-Host "  - SSH-ключ $LPFC_KeyPath битый или не установлен на сервере"
     Write-Host "  - порт $LPFC_LocalPort занят другим процессом (netstat -ano | findstr $LPFC_LocalPort)"
-    exit 1
+    LPFC-Exit 1
 }

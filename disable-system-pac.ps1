@@ -2,6 +2,8 @@
 # Отключает системный PAC-скрипт (claude-proxy.pac), включённый через
 # enable-system-pac.ps1. Не трогает Invisible Man / ProxyEnable.
 
+. "$PSScriptRoot\config.ps1"
+
 $settingsKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings"
 Remove-ItemProperty -Path $settingsKey -Name AutoConfigURL -ErrorAction SilentlyContinue
 
@@ -15,3 +17,5 @@ Add-Type -MemberDefinition $sig -Namespace WinInet -Name NativeMethods -ErrorAct
 
 Write-Host "[pac] выключен" -ForegroundColor Green
 Write-Host "Перезапусти Claude Desktop, чтобы изменения подхватились." -ForegroundColor Yellow
+
+LPFC-WaitIfLaunched

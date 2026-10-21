@@ -247,6 +247,21 @@ if ($enablePac -eq "y" -or $enablePac -eq "Y") {
 }
 
 # ---------------------------------------------------------------------------
+# 7b. Shell shortcuts (tunnel-up, tunnel-status, pac-on, ...)
+# ---------------------------------------------------------------------------
+Write-Host ""
+Write-Host "--- Shell shortcuts ---" -ForegroundColor Yellow
+Write-Host "Регистрирует функции в твоём PowerShell профиле, чтобы можно было" -ForegroundColor Gray
+Write-Host "вызывать tunnel-up / tunnel-status / pac-on / whitelist-ip из ЛЮБОЙ" -ForegroundColor Gray
+Write-Host "папки без & и путей." -ForegroundColor Gray
+$installShortcuts = Ask "Установить shortcuts? [Y/n]" "Y"
+if ($installShortcuts -ne "n" -and $installShortcuts -ne "N") {
+    & "$root\install-shell-shortcuts.ps1"
+} else {
+    Write-Host "  Пропущено. Установить потом: .\install-shell-shortcuts.ps1" -ForegroundColor DarkGray
+}
+
+# ---------------------------------------------------------------------------
 # 8. Итог
 # ---------------------------------------------------------------------------
 Write-Host ""
