@@ -65,14 +65,30 @@ cd bratanClaudeAccessRu
 
 ## Повседневные команды
 
-Все команды ниже предполагают что ты **внутри папки проекта** (`cd <ROOT>`).
-Если запускаешь из любой другой папки — используй call operator `&` и полный
-путь в кавычках:
+### Короткий способ: `install-shell-shortcuts.ps1` (один раз)
+
 ```powershell
-& "E:\Top Programs\VPN\LocalProxyForClaude\start-tunnel.ps1"
+.\install-shell-shortcuts.ps1
 ```
-Без `&` PowerShell воспримет строку как литерал и просто её распечатает —
-скрипт не запустится. `cd` в папку проекта + `.\script.ps1` работает всегда.
+Это добавит функции-алиасы в твой PowerShell профиль. После открытия
+нового PS окна команды работают **из любой папки, без `&` и путей**:
+
+| Команда | Что делает |
+|---|---|
+| `tunnel-up` | поднять SSH-туннель |
+| `tunnel-down` | убить туннель |
+| `tunnel-status` | диагностика |
+| `tunnel-restart` | жёсткий перезапуск |
+| `pac-on` / `pac-off` | PAC для Claude Desktop |
+| `whitelist-ip 1.2.3.4` | внести IP в whitelist fail2ban на сервере |
+| `claude-vpn` | Claude Code через прокси |
+| `cd-vpn` | перейти в папку проекта |
+
+Удалить алиасы: `.\install-shell-shortcuts.ps1 -Uninstall`.
+
+### Прямой запуск скриптов
+
+Если не хочешь ставить алиасы — запускай скрипты напрямую:
 
 | Задача | Команда |
 |---|---|
@@ -84,6 +100,13 @@ cd bratanClaudeAccessRu
 | Включить PAC для Claude Desktop | `.\enable-system-pac.ps1` |
 | Выключить PAC | `.\disable-system-pac.ps1` |
 | Добавить IP в whitelist fail2ban | `.\whitelist-ip.ps1 1.2.3.4` |
+
+Эти команды предполагают что ты **внутри папки проекта** (`cd <ROOT>`).
+Из любой другой папки — через call operator и полный путь в кавычках:
+```powershell
+& "E:\Top Programs\VPN\LocalProxyForClaude\start-tunnel.ps1"
+```
+Без `&` PowerShell воспримет строку как литерал и просто её напечатает.
 
 ---
 
