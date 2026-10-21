@@ -11,8 +11,11 @@ if (LPFC-IsTunnelUp) {
 
 Write-Host "[tunnel] starting: 127.0.0.1:${LPFC_LocalPort} -> ${LPFC_SshHost}:${LPFC_RemotePort}" -ForegroundColor Cyan
 
+# ВАЖНО: Start-Process -ArgumentList НЕ квотирует элементы массива с пробелами —
+# ssh получит `-i E:\Top Programs\...` и будет считать `Programs\...` хостом.
+# Поэтому аргументы с возможными пробелами (путь к ключу) обёрнуты в "" вручную.
 Start-Process -WindowStyle Hidden -FilePath "ssh" -ArgumentList @(
-    "-i", $LPFC_KeyPath,
+    "-i", "`"$LPFC_KeyPath`"",
     "-N",
     "-o", "ServerAliveInterval=30",
     "-o", "ServerAliveCountMax=3",

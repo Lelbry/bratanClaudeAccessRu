@@ -28,8 +28,11 @@ $conn = Get-NetTCPConnection -LocalPort $pacPort -State Listen -ErrorAction Sile
     Where-Object { $_.LocalAddress -eq "127.0.0.1" }
 if (-not $conn) {
     Write-Host "[pac-server] не запущен на порту $pacPort - запускаю..." -ForegroundColor Yellow
+    # ВАЖНО: путь к скрипту квотируем вручную — иначе powershell.exe получит
+    # `-File E:\Top` и упадёт, когда папка содержит пробел.
+    $pacScript = Join-Path $PSScriptRoot "pac-server.ps1"
     Start-Process powershell.exe -WindowStyle Hidden -ArgumentList @(
-        "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "pac-server.ps1")
+        "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$pacScript`""
     )
     Start-Sleep -Seconds 1
 }

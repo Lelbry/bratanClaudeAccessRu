@@ -1,7 +1,7 @@
 ﻿# uninstall-all.ps1
 # Полный откат всего LocalProxyForClaude:
-#   1. Убить туннель
-#   2. Снять scheduled task
+#   1. Убить туннель и PAC-сервер; снести старые scheduled tasks если были
+#   2. Выключить системный PAC в Windows (убрать AutoConfigURL)
 #   3. Удалить tinyproxy с сервера
 #   4. (опционально) удалить SSH-ключ из authorized_keys на сервере
 #
@@ -12,9 +12,10 @@
 Write-Host "=== Rollback LocalProxyForClaude ===" -ForegroundColor Cyan
 Write-Host ""
 
-# 1. Autostart + туннель
-Write-Host "[1/3] снимаем автозапуск и убиваем туннель" -ForegroundColor Cyan
+# 1. Останавливаем туннель и PAC-сервер; сносим scheduled tasks если были
+Write-Host "[1/3] останавливаем туннель, PAC-сервер и чистим scheduled tasks" -ForegroundColor Cyan
 & "$PSScriptRoot\uninstall-autostart.ps1"
+& "$PSScriptRoot\disable-system-pac.ps1"
 
 # 2. Сервер: снести tinyproxy
 Write-Host ""

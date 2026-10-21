@@ -1,31 +1,48 @@
 ﻿# restart-proxy.ps1
 # Жёсткий перезапуск туннеля и PAC-сервера. Использовать если после
 # включения/выключения Warp (или другого VPN) Claude Desktop завис —
-# это значит, что scheduled tasks были убиты (например, вручную через
-# Task Manager) и не поднялись сами.
+# это значит, что процессы ssh/pac-server могли упасть и не поднялись.
+#
+# Работает без scheduled tasks: убивает процессы напрямую и запускает заново.
 
 . "$PSScriptRoot\config.ps1"
 
-Write-Host "[restart] останавливаю задачи..." -ForegroundColor Cyan
-Stop-ScheduledTask -TaskName $LPFC_TaskName -ErrorAction SilentlyContinue
-Stop-ScheduledTask -TaskName $LPFC_PacTaskName -ErrorAction SilentlyContinue
+Write-Host "[restart] останавливаю туннель и PAC-сервер..." -ForegroundColor Cyan
 
-# На всякий случай убить осиротевшие ssh/pac-server процессы, которые
-# могли пережить убийство родительской задачи.
-Get-Process ssh -ErrorAction SilentlyContinue | ForEach-Object {
-    $cl = (Get-CimInstance Win32_Process -Filter "ProcessId=$($_.Id)" -ErrorAction SilentlyContinue).CommandLine
-    if ($cl -and $cl -like "*$LPFC_KeyPath*") { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue }
+# 1. Убить SSH-туннель (ssh-процессы с нашим ключом в cmdline)
+$sshPids = LPFC-GetTunnelPids
+foreach ($p in $sshPids) {
+    Write-Host "  killing ssh PID=$p" -ForegroundColor DarkGray
+    Stop-Process -Id $p -Force -ErrorAction SilentlyContinue
 }
-Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" |
+
+# 2. Убить pac-server.ps1 если крутится
+Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue |
     Where-Object { $_.CommandLine -match 'pac-server\.ps1' } |
-    ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    ForEach-Object {
+        Write-Host "  killing pac-server PID=$($_.ProcessId)" -ForegroundColor DarkGray
+        Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+    }
 
 Start-Sleep -Seconds 1
 
-Write-Host "[restart] запускаю задачи..." -ForegroundColor Cyan
-Start-ScheduledTask -TaskName $LPFC_TaskName
-Start-ScheduledTask -TaskName $LPFC_PacTaskName
+# 3. Поднять туннель заново
+Write-Host "[restart] запускаю туннель..." -ForegroundColor Cyan
+& "$PSScriptRoot\start-tunnel.ps1"
 
-Start-Sleep -Seconds 3
+# 4. Поднять PAC-сервер если его порт свободен (значит нужен — он был запущен)
+#    (если PAC не был включён — enable-system-pac.ps1 его сам запустит при необходимости)
+$pacListening = Get-NetTCPConnection -LocalPort $LPFC_PacPort -State Listen -ErrorAction SilentlyContinue |
+    Where-Object { $_.LocalAddress -eq "127.0.0.1" }
+if (-not $pacListening) {
+    Write-Host "[restart] запускаю PAC-сервер..." -ForegroundColor Cyan
+    $pacScript = Join-Path $PSScriptRoot "pac-server.ps1"
+    Start-Process powershell.exe -WindowStyle Hidden -ArgumentList @(
+        "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$pacScript`""
+    )
+    Start-Sleep -Seconds 1
+}
+
+Start-Sleep -Seconds 1
 
 & "$PSScriptRoot\status.ps1"

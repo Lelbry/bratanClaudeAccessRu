@@ -36,10 +36,12 @@ if ($viaProxy -eq $LPFC_SshHost) {
     Write-Host "          Ожидался IP $LPFC_SshHost, но прокси вернул $viaProxy" -ForegroundColor Red
 }
 
-# 4. Scheduled task
-$task = Get-ScheduledTask -TaskName $LPFC_TaskName -ErrorAction SilentlyContinue
-if ($task) {
-    Write-Host "[autostart] enabled ($($task.State))" -ForegroundColor Green
+# 4. PAC-сервер (нужен только для Claude Desktop из Microsoft Store)
+$pacListening = Get-NetTCPConnection -LocalPort $LPFC_PacPort -State Listen -ErrorAction SilentlyContinue |
+    Where-Object { $_.LocalAddress -eq "127.0.0.1" }
+if ($pacListening) {
+    Write-Host "[pac]     UP    http://127.0.0.1:$LPFC_PacPort/proxy.pac (нужен для Claude Desktop)" -ForegroundColor Green
 } else {
-    Write-Host "[autostart] not installed - .\install-autostart.ps1" -ForegroundColor Yellow
+    Write-Host "[pac]     DOWN  (ок если не используешь Claude Desktop из Store)" -ForegroundColor DarkGray
+    Write-Host "          Включить: .\enable-system-pac.ps1" -ForegroundColor DarkGray
 }

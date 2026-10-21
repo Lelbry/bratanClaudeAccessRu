@@ -1,8 +1,8 @@
-# setup.ps1
+﻿# setup.ps1
 # ============================================================================
 # Первая настройка LocalProxyForClaude.
-# Задаёт параметры сервера, генерирует конфиги, ставит автозагрузку.
-# Запускать один раз при первой установке. Можно перезапустить для смены настроек.
+# Создаёт private/server.ps1 с личными данными сервера, кладёт SSH-ключ,
+# ставит автозагрузку. Запускать один раз при первой установке.
 #
 # Использование:
 #   powershell -ExecutionPolicy Bypass -File setup.ps1
@@ -17,22 +17,26 @@ $defaults = @{
     SshHost       = ""
     SshUser       = "root"
     SshPort       = 22
-    LocalPort     = 8888
-    RemotePort    = 8888
-    PacPort       = 8899
     ChromeProfile = ""
 }
 
-$configPath = Join-Path $root "config.ps1"
-if (Test-Path $configPath) {
-    . $configPath
+$privateDir  = Join-Path $root "private"
+$privateCfg  = Join-Path $privateDir "server.ps1"
+if (Test-Path $privateCfg) {
+    . $privateCfg
     if ($LPFC_SshHost)       { $defaults.SshHost       = $LPFC_SshHost }
     if ($LPFC_SshUser)       { $defaults.SshUser       = $LPFC_SshUser }
     if ($LPFC_SshPort)       { $defaults.SshPort       = $LPFC_SshPort }
-    if ($LPFC_LocalPort)     { $defaults.LocalPort     = $LPFC_LocalPort }
-    if ($LPFC_RemotePort)    { $defaults.RemotePort    = $LPFC_RemotePort }
-    if ($LPFC_PacPort)       { $defaults.PacPort       = $LPFC_PacPort }
     if ($LPFC_ChromeProfile) { $defaults.ChromeProfile = $LPFC_ChromeProfile }
+}
+
+# Порты туннеля — общие значения из config.ps1 (нужны для PAC-файла и browser-config).
+$configPath = Join-Path $root "config.ps1"
+$LocalPort = 8888   # fallback если config.ps1 ещё не считан
+if (Test-Path $configPath) {
+    # Читаем только LocalPort, напрямую (не дот-сорсим — иначе упадёт из-за отсутствия server.ps1)
+    $raw = Get-Content $configPath -Raw
+    if ($raw -match 'LPFC_LocalPort\s*=\s*(\d+)') { $LocalPort = [int]$matches[1] }
 }
 
 # ---------------------------------------------------------------------------
@@ -57,6 +61,10 @@ Write-Host "Система создаёт SSH-туннель до твоего �
 Write-Host "и маршрутизирует трафик AI-сервисов (Claude, ChatGPT, Gemini," -ForegroundColor Gray
 Write-Host "Grok, Perplexity и др.) через него." -ForegroundColor Gray
 Write-Host ""
+Write-Host "Личные данные (IP, SSH-порт, Chrome-профиль) сохранятся в" -ForegroundColor Gray
+Write-Host "  private\server.ps1" -ForegroundColor Gray
+Write-Host "— эта папка в .gitignore, ничего из неё в репу не попадает." -ForegroundColor Gray
+Write-Host ""
 Write-Host "Нажми Enter, чтобы оставить значение по умолчанию [в скобках]." -ForegroundColor DarkGray
 Write-Host ""
 
@@ -71,11 +79,8 @@ while ([string]::IsNullOrWhiteSpace($sshHost)) {
     $sshHost = Ask "IP-адрес сервера" ""
 }
 
-$sshUser    = Ask "SSH-пользователь" $defaults.SshUser
-$sshPort    = [int](Ask "SSH-порт" $defaults.SshPort)
-$localPort  = [int](Ask "Локальный порт туннеля" $defaults.LocalPort)
-$remotePort = [int](Ask "Порт tinyproxy на сервере" $defaults.RemotePort)
-$pacPort    = [int](Ask "Порт PAC-сервера (раздаёт прокси-конфиг)" $defaults.PacPort)
+$sshUser = Ask "SSH-пользователь" $defaults.SshUser
+$sshPort = [int](Ask "SSH-порт" $defaults.SshPort)
 
 # ---------------------------------------------------------------------------
 # 2. Chrome-профиль
@@ -173,20 +178,24 @@ if (Test-Path $keyPath) {
 }
 
 # ---------------------------------------------------------------------------
-# 4. Записываем config.ps1
+# 4. Записываем private\server.ps1
 # ---------------------------------------------------------------------------
 Write-Host ""
 Write-Host "--- Записываю конфиги ---" -ForegroundColor Cyan
 
-$configContent = @"
-# config.ps1
+if (-not (Test-Path $privateDir)) {
+    New-Item -ItemType Directory -Path $privateDir -Force | Out-Null
+}
+
+$privateContent = @"
+# private/server.ps1
 # ============================================================================
-# Единая точка конфигурации LocalProxyForClaude.
-# Все скрипты в этой папке дот-сорсят этот файл: ``. `$PSScriptRoot\config.ps1``
-# Меняешь тут - меняется везде.
+# ТВОИ ЛИЧНЫЕ ДАННЫЕ СЕРВЕРА.
+# Этот файл в .gitignore (вместе со всей папкой private/) — не пушится.
+# Общий config.ps1 из корня дот-сорсит этот файл.
 #
 # Сгенерировано setup.ps1 $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
-# Можно редактировать вручную или перезапустить setup.ps1
+# Можно редактировать вручную или перезапустить setup.ps1.
 # ============================================================================
 
 # --- Сервер ---
@@ -194,100 +203,37 @@ $configContent = @"
 `$Global:LPFC_SshUser    = "$sshUser"
 `$Global:LPFC_SshPort    = $sshPort
 
-# --- Туннель ---
-`$Global:LPFC_LocalPort  = $localPort    # порт на этом ПК (127.0.0.1:LocalPort -> прокси на сервере)
-`$Global:LPFC_RemotePort = $remotePort   # порт tinyproxy на сервере (слушает 127.0.0.1)
-
-# --- PAC-сервер ---
-`$Global:LPFC_PacPort    = $pacPort      # HTTP-сервер, раздающий PAC-файл (http://127.0.0.1:PacPort/proxy.pac)
-
-# --- Chrome (для скриптов SwitchyOmega) ---
-`$Global:LPFC_ChromeProfile = "$chromeProfile"   # папка профиля Chrome (напр. "Default", "Profile 1")
-
-# --- Пути ---
-`$Global:LPFC_Root       = Split-Path -Parent `$MyInvocation.MyCommand.Definition
-`$Global:LPFC_KeyPath    = Join-Path `$Global:LPFC_Root "keys\id_ed25519_claude"
-`$Global:LPFC_LogFile    = Join-Path `$Global:LPFC_Root "tunnel.log"
-
-# --- Имена scheduled tasks для автозапуска ---
-`$Global:LPFC_TaskName      = "LocalProxyForClaude-Tunnel"
-`$Global:LPFC_PacTaskName   = "LocalProxyForClaude-PAC"
-
-# --- Хелперы ---
-function LPFC-IsTunnelUp {
-    `$conn = Get-NetTCPConnection -LocalPort `$Global:LPFC_LocalPort -State Listen -ErrorAction SilentlyContinue |
-        Where-Object { `$_.LocalAddress -eq "127.0.0.1" }
-    return [bool]`$conn
-}
-
-function LPFC-GetTunnelPids {
-    `$pids = @()
-    Get-Process ssh -ErrorAction SilentlyContinue | ForEach-Object {
-        `$cl = (Get-CimInstance Win32_Process -Filter "ProcessId=`$(`$_.Id)" -ErrorAction SilentlyContinue).CommandLine
-        if (`$cl -and `$cl -like "*`$(`$Global:LPFC_KeyPath)*") { `$pids += `$_.Id }
-    }
-    return `$pids
-}
+# --- Chrome-профиль (для скриптов SwitchyOmega) ---
+`$Global:LPFC_ChromeProfile = "$chromeProfile"
 "@
 
-Set-Content -Path $configPath -Value $configContent -Encoding UTF8
-Write-Host "  config.ps1" -ForegroundColor Green
+Set-Content -Path $privateCfg -Value $privateContent -Encoding UTF8
+Write-Host "  private\server.ps1" -ForegroundColor Green
 
 # ---------------------------------------------------------------------------
-# 5. Перегенерируем claude-proxy.pac с актуальным портом
+# 5. Обновляем claude-proxy.pac — на случай если менялся LocalPort
 # ---------------------------------------------------------------------------
 $pacPath = Join-Path $root "claude-proxy.pac"
-$pacContent = @"
-// claude-proxy.pac
-// Системный PAC-скрипт: только домены Anthropic/Claude и другие AI-сервисы
-// идут через наш туннель (127.0.0.1:$localPort), весь остальной интернет — напрямую.
-//
-// Домены можно добавлять/убирать. При раздаче через pac-server.ps1 порт
-// подставляется из config.ps1 автоматически.
-
-function FindProxyForURL(url, host) {
-    var domains = [
-        "claude.ai",
-        "anthropic.com"
-    ];
-
-    for (var i = 0; i < domains.length; i++) {
-        var d = domains[i];
-        if (host == d || dnsDomainIs(host, "." + d)) {
-            return "PROXY 127.0.0.1:$localPort";
-        }
-    }
-
-    return "DIRECT";
+if (Test-Path $pacPath) {
+    $pacRaw = Get-Content $pacPath -Raw
+    $pacRaw = $pacRaw -replace 'PROXY 127\.0\.0\.1:\d+', "PROXY 127.0.0.1:$LocalPort"
+    Set-Content -Path $pacPath -Value $pacRaw -Encoding UTF8
+    Write-Host "  claude-proxy.pac (порт $LocalPort)" -ForegroundColor Green
 }
-"@
-
-Set-Content -Path $pacPath -Value $pacContent -Encoding UTF8
-Write-Host "  claude-proxy.pac" -ForegroundColor Green
 
 # ---------------------------------------------------------------------------
-# 6. Перегенерируем browser-extension-config.json с актуальным портом
+# 6. Обновляем browser-extension-config.json с актуальным портом
 # ---------------------------------------------------------------------------
 $extConfigPath = Join-Path $root "google chrome extention\browser-extension-config.json"
-$extConfigRaw = Get-Content $extConfigPath -Raw
-$extConfigRaw = $extConfigRaw -replace '"port":\s*\d+', "`"port`": $localPort"
-Set-Content -Path $extConfigPath -Value $extConfigRaw -Encoding UTF8
-Write-Host "  browser-extension-config.json" -ForegroundColor Green
-
-# ---------------------------------------------------------------------------
-# 7. Автозагрузка
-# ---------------------------------------------------------------------------
-Write-Host ""
-Write-Host "--- Автозагрузка ---" -ForegroundColor Yellow
-$autostart = Ask "Установить автозагрузку (туннель + PAC при старте Windows)? [Y/n]" "Y"
-if ($autostart -ne "n" -and $autostart -ne "N") {
-    & "$root\install-autostart.ps1"
-} else {
-    Write-Host "  Пропущено. Запустить потом: .\install-autostart.ps1" -ForegroundColor DarkGray
+if (Test-Path $extConfigPath) {
+    $extConfigRaw = Get-Content $extConfigPath -Raw
+    $extConfigRaw = $extConfigRaw -replace '"port":\s*\d+', "`"port`": $LocalPort"
+    Set-Content -Path $extConfigPath -Value $extConfigRaw -Encoding UTF8
+    Write-Host "  browser-extension-config.json" -ForegroundColor Green
 }
 
 # ---------------------------------------------------------------------------
-# 8. Системный PAC (для Claude Desktop из Microsoft Store)
+# 7. Системный PAC (для Claude Desktop из Microsoft Store)
 # ---------------------------------------------------------------------------
 Write-Host ""
 Write-Host "--- Системный PAC ---" -ForegroundColor Yellow
@@ -301,7 +247,7 @@ if ($enablePac -eq "y" -or $enablePac -eq "Y") {
 }
 
 # ---------------------------------------------------------------------------
-# 9. Итог
+# 8. Итог
 # ---------------------------------------------------------------------------
 Write-Host ""
 Write-Host "============================================" -ForegroundColor Green
@@ -310,8 +256,7 @@ Write-Host "============================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "Что настроено:" -ForegroundColor Cyan
 Write-Host "  Сервер:     $sshHost (SSH: ${sshUser}@${sshHost}:$sshPort)" -ForegroundColor White
-Write-Host "  Туннель:    127.0.0.1:$localPort -> сервер:$remotePort" -ForegroundColor White
-Write-Host "  PAC:        http://127.0.0.1:${pacPort}/proxy.pac" -ForegroundColor White
+Write-Host "  Туннель:    127.0.0.1:$LocalPort -> сервер (из config.ps1)" -ForegroundColor White
 if ($chromeProfile) {
     Write-Host "  Chrome:     профиль '$chromeProfile'" -ForegroundColor White
 }

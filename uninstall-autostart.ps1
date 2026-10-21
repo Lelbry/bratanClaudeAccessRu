@@ -1,4 +1,4 @@
-# uninstall-autostart.ps1
+﻿# uninstall-autostart.ps1
 # Убирает scheduled tasks автозапуска (туннель + PAC-сервер).
 
 . "$PSScriptRoot\config.ps1"

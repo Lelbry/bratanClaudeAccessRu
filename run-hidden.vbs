@@ -1,4 +1,8 @@
 ' run-hidden.vbs
+'
+' ⚠️ В РАЗРАБОТКЕ — используется install-autostart.ps1, который пока
+' работает ненадёжно. См. комментарий в install-autostart.ps1.
+'
 ' Универсальный лаунчер: запускает PowerShell-скрипт полностью скрыто (без консольного окна).
 ' Использование: wscript.exe run-hidden.vbs "path\to\script.ps1"
 '

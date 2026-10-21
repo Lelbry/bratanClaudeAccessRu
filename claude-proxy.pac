@@ -8,7 +8,8 @@
 function FindProxyForURL(url, host) {
     var domains = [
         "claude.ai",
-        "anthropic.com"
+        "anthropic.com",
+        "claudeusercontent.com"
     ];
 
     for (var i = 0; i < domains.length; i++) {

@@ -1,24 +1,44 @@
 ﻿# config.ps1
 # ============================================================================
-# Единая точка конфигурации LocalProxyForClaude.
-# Все скрипты в этой папке дот-сорсят этот файл: `. $PSScriptRoot\config.ps1`
-# Меняешь тут - меняется везде.
+# ОБЩИЙ конфиг LocalProxyForClaude — пушится в git, одинаков у всех.
+#
+# Личные данные (IP сервера, SSH-порт, Chrome-профиль) лежат в
+#   private\server.ps1
+# — этот файл в .gitignore и у каждого свой.
+#
+# Первая установка:
+#   Copy-Item private\server.ps1.example private\server.ps1
+#   notepad private\server.ps1    # впиши IP своего VPS
+#
+# Или запусти setup.ps1 — он спросит значения и создаст server.ps1 сам.
+#
+# Все скрипты в репе дот-сорсят этот файл: `. $PSScriptRoot\config.ps1`.
 # ============================================================================
 
-# --- Сервер ---
-$Global:LPFC_SshHost    = "YOUR_SERVER_IP"    # <-- ЗАМЕНИ на IP своего сервера (setup.ps1 сделает это за тебя)
-$Global:LPFC_SshUser    = "root"
-$Global:LPFC_SshPort    = 22
+# --- Подгружаем личные данные из private\server.ps1 ---
+$privateCfg = Join-Path $PSScriptRoot "private\server.ps1"
+if (-not (Test-Path $privateCfg)) {
+    Write-Host ""
+    Write-Host "============================================" -ForegroundColor Red
+    Write-Host "  Нет private\server.ps1 — не найдены данные сервера." -ForegroundColor Red
+    Write-Host "============================================" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "Сделай одно из двух:" -ForegroundColor Yellow
+    Write-Host "  1. Запусти .\setup.ps1 (ответит на все вопросы интерактивно)"
+    Write-Host "  2. Руками:"
+    Write-Host "       Copy-Item private\server.ps1.example private\server.ps1"
+    Write-Host "       notepad private\server.ps1"
+    Write-Host ""
+    throw "private\server.ps1 не найден"
+}
+. $privateCfg
 
-# --- Туннель ---
+# --- Туннель (одинаково у всех) ---
 $Global:LPFC_LocalPort  = 8888    # порт на этом ПК (127.0.0.1:LocalPort -> прокси на сервере)
-$Global:LPFC_RemotePort = 8888   # порт tinyproxy на сервере (слушает 127.0.0.1)
+$Global:LPFC_RemotePort = 8888    # порт tinyproxy на сервере (слушает 127.0.0.1)
 
 # --- PAC-сервер ---
 $Global:LPFC_PacPort    = 8899    # HTTP-сервер, раздающий PAC-файл (http://127.0.0.1:PacPort/proxy.pac)
-
-# --- Chrome (для скриптов SwitchyOmega) ---
-$Global:LPFC_ChromeProfile = ""   # папка профиля Chrome (setup.ps1 определит автоматически)
 
 # --- Пути ---
 $Global:LPFC_Root       = Split-Path -Parent $MyInvocation.MyCommand.Definition

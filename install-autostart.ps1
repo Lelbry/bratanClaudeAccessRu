@@ -1,9 +1,35 @@
-# install-autostart.ps1
-# Регистрирует scheduled tasks:
-#   1. tunnel-daemon.ps1 — SSH-туннель до сервера (автореконнект)
-#   2. pac-server.ps1    — HTTP-сервер, раздающий PAC-файл для Claude Desktop
-# Обе задачи стартуют при входе в Windows и перезапускаются при сбое.
-# Запускать НЕ обязательно от админа — tasks ставятся в пользовательский scope.
+﻿# install-autostart.ps1
+#
+# ⚠️⚠️⚠️ В РАЗРАБОТКЕ — работает НЕНАДЁЖНО ⚠️⚠️⚠️
+#
+# Этот скрипт регистрирует Windows Scheduled Tasks для автозапуска
+# туннеля и PAC-сервера при логоне. На практике:
+#   - процессы падают с 0xC000013A (CTRL+C при закрытии консоли)
+#   - после перезагрузки часто не стартуют вообще
+#   - VBS-обёртка (run-hidden.vbs) помогает частично, не полностью
+#
+# Пока — запускай туннель и PAC-сервер руками:
+#   .\start-tunnel.ps1
+#   .\enable-system-pac.ps1    (поднимет pac-server.ps1 если нужно)
+#
+# Или через ярлык в shell:startup (Win+R → shell:startup) — положить
+# туда ярлык на restart-proxy.ps1.
+#
+# Код ниже оставлен для экспериментов / будущей починки.
+# -----------------------------------------------------------------------------
+
+Write-Host ""
+Write-Host "============================================" -ForegroundColor Yellow
+Write-Host "  install-autostart.ps1 — в разработке" -ForegroundColor Yellow
+Write-Host "============================================" -ForegroundColor Yellow
+Write-Host "Автозапуск через Windows Scheduled Tasks работает ненадёжно." -ForegroundColor Gray
+Write-Host "Пока запускай туннель вручную: .\start-tunnel.ps1" -ForegroundColor Gray
+Write-Host "Или положи ярлык на restart-proxy.ps1 в shell:startup." -ForegroundColor Gray
+Write-Host ""
+$cont = Read-Host "Всё равно попробовать установить scheduled tasks? [y/N]"
+if ($cont -ne "y" -and $cont -ne "Y") {
+    exit 0
+}
 
 . "$PSScriptRoot\config.ps1"
 

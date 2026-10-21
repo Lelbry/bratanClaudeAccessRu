@@ -1,4 +1,8 @@
 ﻿# tunnel-daemon.ps1
+#
+# ⚠️ В РАЗРАБОТКЕ — работает в паре с install-autostart.ps1, который
+# пока ненадёжен (см. комментарий в install-autostart.ps1).
+#
 # Бесконечный цикл: держит SSH-туннель поднятым, перезапускает при обрыве.
 # Используется scheduled task-ом install-autostart.ps1.
 # Пишет лог в config: $LPFC_LogFile.
